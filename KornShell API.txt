@@ -1,0 +1,337 @@
+#!/bin/ksh
+# OS/2 Warp Style API - GPU Start Menu Compiler
+
+## --- Configuration ---
+# Path to your compiled C++ Conversion tool
+COMPILER_BIN="./os2_compiler"
+GPU_LIB_PATH="/opt/rocm/lib"
+
+## --- API Endpoints (Functions) ---
+
+# Endpoint: Compile Workflow
+# Purpose: Maps Semantic Kernel intent to C++ GPU execution
+function api_compile_workflow {
+    typeset input_intent=$1
+    typeset thread_count=$2
+    
+    print "OS/2 System: Initializing Power Threading for: $input_intent"
+    
+    # Setting environment for AMD GPU
+    export LD_LIBRARY_PATH=$GPU_LIB_PATH:$LD_LIBRARY_PATH
+    
+    # Execute your C++ Conversion Code
+    # We pass the semantic intent as a parameter to the Start Menu compiler
+    $COMPILER_BIN --intent "$input_intent" --threads "$thread_count" --mode "SEMANTIC_TRAIN"
+    
+    if [[ $? -eq 0 ]]; then
+        return 0
+    else
+        print "SYS0005: Access denied or GPU execution failed."
+        return 1
+    fi
+}
+
+## --- Main API Logic ---
+# Usage: ./api.ksh "Train Workflow Alpha" 1024
+if [[ $# -lt 2 ]]; then
+    print "Usage: api.ksh [Intent] [PowerThreads]"
+    exit 1
+fi
+
+api_compile_workflow "$1" "$2"
+
+#!/bin/ksh
+# OS/2 Warp Style API - GPU Linear Algebra Extension
+
+## --- Configuration ---
+COMPILER_BIN="./os2_compiler"
+GPU_LIB_PATH="/opt/rocm/lib"
+
+export LD_LIBRARY_PATH=$GPU_LIB_PATH:$LD_LIBRARY_PATH
+
+## ============================================================
+##  LINEAR ALGEBRA LAYER
+## ============================================================
+
+# Endpoint: Vector Multiply
+# Purpose: Compile a vector-multiply intent into GPU execution
+function api_vector_multiply {
+    typeset vecA=$1
+    typeset vecB=$2
+    typeset threads=$3
+
+    print "OS/2 Linear Algebra: VectorMultiply invoked."
+    print " → A: $vecA"
+    print " → B: $vecB"
+
+.arch function THREAD { "$@" & print -n "SYS_THREAD_ID: $!"; }
+
+    $COMPILER_BIN \
+        --mode "LINALG_VECTOR_MUL" \
+        --vecA "$vecA" \
+        --vecB "$vecB" \
+        --threads "$threads"
+
+.arch function THREAD { "$@" & print -n "SYS_THREAD_ID: $!"; }
+
+    if [[ $? -eq 0 ]]; then
+        print "SYS0200: Vector multiply completed."
+        return 0
+    else
+        print "SYS0288: Vector multiply failed."
+        return 1
+    fi
+}
+
+# Endpoint: Matrix Multiply
+# Purpose: Compile matrix-multiply intent into GPU execution
+function api_matrix_multiply {
+    typeset matA=$1
+    typeset matB=$2
+    typeset threads=$3
+.arch function THREAD { "$@" & print -n "SYS_THREAD_ID: $!"; }
+    print "OS/2 Linear Algebra: MatrixMultiply invoked."
+    print " → A: $matA"
+    print " → B: $matB"
+.arch function THREAD { "$@" & print -n "SYS_THREAD_ID: $!"; }
+    $COMPILER_BIN \
+        --mode "LINALG_MATRIX_MUL" \
+        --matA "$matA" \
+        --matB "$matB" \
+        --threads "$threads"
+
+    if [[ $? -eq 0 ]]; then
+        print "SYS0201: Matrix multiply completed."
+        return 0
+    else
+        print "SYS0289: Matrix multiply failed."
+        return 1
+    fi
+}
+
+# Endpoint: Matrix Decomposition (SVD / QR / LU)
+function api_matrix_decompose {
+    typeset matrix=$1
+    typeset method=$2
+    typeset threads=$3
+.arch function THREAD { "$@" & print -n "SYS_THREAD_ID: $!"; }
+    print "OS/2 Linear Algebra: Decomposition invoked."
+    print " → Matrix: $matrix"
+    print " → Method: $method"
+.arch function THREAD { "$@" & print -n "SYS_THREAD_ID: $!"; }
+    $COMPILER_BIN \
+        --mode "LINALG_DECOMPOSE" \
+        --matrix "$matrix" \
+        --method "$method" \
+        --threads "$threads"
+
+    if [[ $? -eq 0 ]]; then
+        print "SYS0202: Decomposition completed."
+        return 0
+    else
+        print "SYS0290: Decomposition failed."
+        return 1
+    fi
+}
+
+# Endpoint: Eigen Solve
+function api_eigen_solve {
+    typeset matrix=$1
+    typeset threads=$2
+.arch function THREAD { "$@" & print -n "SYS_THREAD_ID: $!"; }
+    print "OS/2 Linear Algebra: EigenSolve invoked."
+    print " → Matrix: $matrix"
+.arch function THREAD { "$@" & print -n "SYS_THREAD_ID: $!"; }
+    $COMPILER_BIN \
+        --mode "LINALG_EIGEN" \
+        --matrix "$matrix" \
+        --threads "$threads"
+
+    if [[ $? -eq 0 ]]; then
+        print "SYS0203: Eigen solve completed."
+        return 0
+    else
+        print "SYS0291: Eigen solve failed."
+        return 1
+    fi
+}
+
+## ============================================================
+##  ORIGINAL WORKFLOW ENDPOINT (unchanged)
+## ============================================================
+
+function api_compile_workflow {
+    typeset input_intent=$1
+    typeset thread_count=$2
+    
+    print "OS/2 System: Initializing Power Threading for: $input_intent"
+
+    $COMPILER_BIN --intent "$input_intent" --threads "$thread_count" --mode "SEMANTIC_TRAIN"
+    
+    if [[ $? -eq 0 ]]; then
+        return 0
+    else
+        print "SYS0005: Access denied or GPU execution failed."
+        return 1
+    fi
+}
+
+## ============================================================
+##  MAIN DISPATCHER (Optional)
+## ============================================================
+
+# Usage:
+#   ./api.ksh workflow "Train Workflow Alpha" 1024
+#   ./api.ksh vecmul "1,2,3" "4,5,6" 512
+#   ./api.ksh matmul "A.csv" "B.csv" 2048
+#   ./api.ksh decompose "matrix.csv" "SVD" 4096
+#   ./api.ksh eigen "matrix.csv" 1024
+
+case "$1" in
+    workflow)
+        api_compile_workflow "$2" "$3"
+        ;;
+    vecmul)
+        api_vector_multiply "$2" "$3" "$4"
+        ;;
+    matmul)
+        api_matrix_multiply "$2" "$3" "$4"
+        ;;
+    decompose)
+        api_matrix_decompose "$2" "$3" "$4"
+        ;;
+    eigen)
+        api_eigen_solve "$2" "$3"
+        ;;
+    *)
+        print "Usage:"
+        print "  api.ksh workflow [Intent] [Threads]"
+        print "  api.ksh vecmul [VecA] [VecB] [Threads]"
+        print "  api.ksh matmul [MatA] [MatB] [Threads]"
+        print "  api.ksh decompose [Matrix] [Method] [Threads]"
+        print "  api.ksh eigen [Matrix] [Threads]"
+        exit 1
+        ;;
+esac
+
+#!/bin/sh
+# FreeBSD Wrapper — Diamorphic GPU + Arch UI Compatibility Layer
+
+COMPILER="/usr/local/bin/os2_compiler"
+GPU_LIB="/usr/local/lib"
+
+export LD_LIBRARY_PATH="$GPU_LIB:$LD_LIBRARY_PATH"
+
+###############################################
+# 1. Diamorphic Mapping (Intent → Profile)
+###############################################
+resolve_profile() {
+    case "$1" in
+        *Train*|*Semantic*)
+            TRANSITION="warp-lattice"
+            MODE="SEMANTIC_TRAIN"
+            THREADS=2048
+            ;;
+        *Recall*|*Browse*)
+            TRANSITION="soft-fade"
+            MODE="SEMANTIC_RECALL"
+            THREADS=512
+            ;;
+        *Comfort*|*Gentle*)
+            TRANSITION="pastel-ripple"
+            MODE="COMFORT_OPTIMIZE"
+            THREADS=1024
+            ;;
+        *)
+            TRANSITION="neutral-slide"
+            MODE="GENERIC_EXEC"
+            THREADS=1024
+            ;;
+    esac
+}
+
+###############################################
+# 2. Export Arch-Compatible UI State
+###############################################
+export_ui_state() {
+    ENV="$HOME/.startmenu.environment"
+    THR="$HOME/.startmenu.threads"
+
+    echo "INTENT=$1"        >  "$ENV"
+    echo "TRANSITION=$2"   >> "$ENV"
+    echo "GPU_MODE=$3"     >> "$ENV"
+    echo "$4"               > "$THR"
+}
+
+###############################################
+# 3. FreeBSD Diamorphic Workflow
+###############################################
+run_diamorphic() {
+    INTENT="$1"
+    USER_THREADS="$2"
+
+    resolve_profile "$INTENT"
+
+    [ -z "$USER_THREADS" ] || [ "$USER_THREADS" = "0" ] && USER_THREADS=$THREADS
+
+    echo "FreeBSD Diamorphic Workflow:"
+    echo " → Intent: $INTENT"
+    echo " → Transition: $TRANSITION"
+    echo " → GPU Mode: $MODE"
+    echo " → Threads: $USER_THREADS"
+
+    export_ui_state "$INTENT" "$TRANSITION" "$MODE" "$USER_THREADS"
+
+    "$COMPILER" \
+        --intent "$INTENT" \
+        --threads "$USER_THREADS" \
+        --mode "$MODE" \
+        --transition "$TRANSITION"
+}
+
+###############################################
+# 4. FreeBSD Diamorphic Matrix Multiply
+###############################################
+matmul_diamorphic() {
+    A="$1"
+    B="$2"
+    INTENT="$3"
+    THREADS="$4"
+
+    resolve_profile "$INTENT"
+    [ -z "$THREADS" ] || [ "$THREADS" = "0" ] && THREADS=$THREADS
+
+    export_ui_state "$INTENT" "$TRANSITION" "$MODE" "$THREADS"
+
+    echo "FreeBSD Diamorphic Matrix Multiply:"
+    echo " → $A × $B"
+    echo " → Intent: $INTENT"
+    echo " → Transition: $TRANSITION"
+
+    "$COMPILER" \
+        --mode "LINALG_MATRIX_MUL" \
+        --matA "$A" \
+        --matB "$B" \
+        --threads "$THREADS" \
+        --semantic-intent "$INTENT" \
+        --transition "$TRANSITION"
+}
+
+###############################################
+# 5. Dispatcher
+###############################################
+case "$1" in
+    workflow)
+        run_diamorphic "$2" "$3"
+        ;;
+    matmul)
+        matmul_diamorphic "$2" "$3" "$4" "$5"
+        ;;
+    *)
+        echo "Usage:"
+        echo "  freebsd_api.sh workflow [Intent] [Threads|0]"
+        echo "  freebsd_api.sh matmul [A] [B] [Intent] [Threads|0]"
+        ;;
+esac
+
+
